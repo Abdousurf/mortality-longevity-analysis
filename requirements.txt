@@ -8,3 +8,19 @@ plotly==5.18.0
 jupyter==1.0.0
 jupytext==1.16.1
 pyarrow==14.0.2
+requests==2.31.0
+openpyxl==3.1.2
+xlrd==2.0.1
+# DataOps
+pandera==0.18.3
+dvc==3.42.0
+papermill==2.5.0
+# DevOps
+pre-commit==3.6.2
+ruff==0.3.2
+black==24.2.0
+isort==5.13.2
+nbstripout==0.7.1
+detect-secrets==1.4.0
+pytest==7.4.4
+nbval==0.10.0

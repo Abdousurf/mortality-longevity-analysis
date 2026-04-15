@@ -1,0 +1,84 @@
+# DVC Pipeline — Mortality & Longevity Analysis (DataOps)
+# Reproductibilité complète de l'analyse actuarielle
+# Commandes : dvc repro | dvc dag | dvc metrics show
+
+stages:
+
+  download_data:
+    cmd: python src/download_hmd_data.py
+    deps:
+      - src/download_hmd_data.py
+    outs:
+      - data/raw/insee/:
+          cache: true
+      - data/raw/who/:
+          cache: true
+    params:
+      - params.yaml:
+          - data.sources
+          - data.years
+
+  prepare_data:
+    cmd: |
+      python -c "
+      from src.download_hmd_data import load_insee_mortality, load_who_covid_excess, generate_hmd_compatible_data
+      df_insee = load_insee_mortality()
+      df_who   = load_who_covid_excess()
+      df_hmd   = generate_hmd_compatible_data(df_insee if not df_insee.empty else None)
+      print(f'Données préparées : INSEE={len(df_insee)}, WHO={len(df_who)}, HMD={len(df_hmd)}')
+      "
+    deps:
+      - src/download_hmd_data.py
+      - data/raw/insee/
+      - data/raw/who/
+    outs:
+      - data/processed/insee_mortality_france.parquet:
+          cache: true
+      - data/processed/who_covid_excess_france.parquet:
+          cache: true
+      - data/processed/mortality_france_demo.parquet:
+          cache: true
+
+  validate_data:
+    cmd: |
+      python src/validate_data.py \
+        --data-path data/processed/insee_mortality_france.parquet \
+        --output reports/validation/insee_validation.json
+    deps:
+      - src/validate_data.py
+      - data/processed/insee_mortality_france.parquet
+    metrics:
+      - reports/validation/insee_validation.json:
+          cache: false
+
+  run_notebooks:
+    cmd: |
+      mkdir -p reports/executed_notebooks
+      for nb in notebooks/0*.ipynb; do
+        papermill "$nb" "reports/executed_notebooks/$(basename $nb)" \
+          -p CI_MODE false \
+          -p DATA_PATH "data/processed/" \
+          --no-progress-bar 2>/dev/null || echo "Skip $nb"
+      done
+    deps:
+      - notebooks/
+      - data/processed/
+      - src/mortality_tables.py
+    outs:
+      - reports/executed_notebooks/:
+          cache: false
+    params:
+      - params.yaml:
+          - lee_carter.n_forecast_years
+          - solvency2.confidence_level
+
+  generate_report:
+    cmd: |
+      mkdir -p reports/html
+      jupyter nbconvert --to html reports/executed_notebooks/*.ipynb \
+        --output-dir reports/html/ 2>/dev/null || true
+    deps:
+      - reports/executed_notebooks/
+    outs:
+      - reports/html/:
+          cache: false

@@ -5,6 +5,9 @@
 [![Python](https://img.shields.io/badge/Python-3.11-blue)](https://python.org)
 [![Jupyter](https://img.shields.io/badge/Jupyter-notebooks-orange)](https://jupyter.org)
 [![Statsmodels](https://img.shields.io/badge/statsmodels-0.14-green)](https://statsmodels.org)
+[![CI](https://github.com/Abdousurf/mortality-longevity-analysis/actions/workflows/ci.yml/badge.svg)](https://github.com/Abdousurf/mortality-longevity-analysis/actions)
+[![DVC](https://img.shields.io/badge/DVC-versioned-945dd6)](https://dvc.org)
+[![Open Data](https://img.shields.io/badge/Open%20Data-INSEE%20%7C%20WHO%20%7C%20HMD-blue)](https://www.insee.fr/fr/statistiques/7635678)
 
 ## Overview
 
@@ -62,12 +65,16 @@ Raw Data (INSEE/HMD)
   ─ 25-year mortality fan charts
 ```
 
-## Data Sources
+## Open Data Sources
 
-- **Human Mortality Database (HMD)** — France mortality data 1816–2022
-- **INSEE** — French population statistics
-- **FFSA/FFA** — French insurance market reference tables (TF00-02, TD 88-90)
-- **WHO** — COVID-19 excess mortality estimates
+| Source | Dataset | Licence | Script |
+|--------|---------|---------|--------|
+| **INSEE** (data.gouv.fr) | Tables de mortalité France 1994–2022 | Licence Ouverte Etalab v2.0 | `src/download_hmd_data.py` |
+| **WHO GHO** (API REST) | Surmortalité COVID-19 France | CC BY-NC-SA 3.0 IGO | `src/download_hmd_data.py` |
+| **HMD** (mortality.org) | Données historiques France 1816–2022 | Free / inscription requise | `src/download_hmd_data.py` |
+| **INSEE Population** | Population France par âge 1975–2023 | Licence Ouverte Etalab v2.0 | `src/download_hmd_data.py` |
+
+Toutes les sources sont accessibles gratuitement. La CI utilise un fallback synthétique (loi Makeham-Gompertz calibrée France) si les sources sont inaccessibles.
 
 ## Tech Stack
 
@@ -79,6 +86,11 @@ Raw Data (INSEE/HMD)
 | Matplotlib + Seaborn | Visualization |
 | Plotly | Interactive charts |
 | Jupyter | Analysis notebooks |
+| **Papermill** | **Exécution automatisée des notebooks (CI/CD)** |
+| **Pandera** | **Validation actuarielle des données (DataOps)** |
+| **DVC** | **Versionnage données + reproductibilité** |
+| **GitHub Actions** | **CI/CD : téléchargement → validation → exécution notebooks → rapport HTML** |
+| **pre-commit + ruff** | **Qualité code + nbstripout (outputs supprimés avant commit)** |
 
 ## Notebooks
 
@@ -118,12 +130,19 @@ Year  | e₀(M)  | e₀(F)  | 95% CI (M)
 git clone https://github.com/Abdousurf/mortality-longevity-analysis
 cd mortality-longevity-analysis
 pip install -r requirements.txt
+pre-commit install
 
-# Download HMD data (free registration required)
-python src/download_hmd_data.py
+# Téléchargement données open data (INSEE + WHO)
+make data-download
 
-# Run notebooks
-jupyter lab
+# Pipeline DataOps complet (download → validation → notebooks → rapport)
+make pipeline
+
+# Ou en une commande
+make pipeline-ci  # version rapide pour CI (données démo sans téléchargement)
+
+# Lancer Jupyter Lab
+make lab
 ```
 
 ## Who Is This For?

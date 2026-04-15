@@ -1,0 +1,27 @@
+# Paramètres DVC — reproductibilité analyse actuarielle
+data:
+  sources:
+    - insee_mortality
+    - who_covid
+    - hmd_compatible
+  years:
+    start: 2000
+    end: 2022
+  country: "FRA"
+
+lee_carter:
+  n_forecast_years: 25    # Projection 2022 → 2047
+  n_bootstrap: 500        # Intervalles de confiance
+  arima_order: [0, 1, 0]  # Marche aléatoire pour κt (standard actuariel)
+  min_age: 0
+  max_age: 100
+
+solvency2:
+  confidence_level: 0.995  # VaR 99.5% (Pilier 1 Solvabilité II)
+  longevity_shock: 0.20    # Choc de longévité standard SCR (-20% mortalité)
+  annuity_rate: 0.02       # Taux d'actualisation (prudent)
+
+mortality_table:
+  graduation_method: "whittaker_henderson"
+  whittaker_lambda: 1000   # Paramètre de lissage
+  reference_table: "TF00-02"  # Table de référence FFSA
