@@ -1,14 +1,17 @@
-"""
-Notebook 03 — Lee-Carter Mortality Model
-==========================================
+"""Lee-Carter mortality model notebook for France (1968-2022).
+
+Implements a complete Lee-Carter mortality modeling workflow including
+model calibration on French HMD data, stochastic mortality projections,
+life expectancy analysis, and Solvency II longevity stress testing.
+
 Execute as a script or open with Jupytext/Jupyter.
 
 Covers:
-- Lee-Carter calibration on French HMD data
-- κ_t time index projection (ARIMA random walk)
-- 25-year mortality fan chart
-- Life expectancy at 65 projection
-- Comparison: males vs females
+    - Lee-Carter calibration on French HMD data.
+    - kappa_t time index projection (ARIMA random walk).
+    - 25-year mortality fan chart.
+    - Life expectancy at 65 projection.
+    - Comparison: males vs females.
 """
 
 # %% [markdown]
@@ -45,7 +48,19 @@ plt.rcParams.update({"figure.dpi": 120, "font.size": 11})
 
 # %%
 def load_hmd_france(data_dir: Path, gender: str = "Male") -> pd.DataFrame:
-    """Load HMD France death rates matrix (ages × years)."""
+    """Load HMD France death rates as an ages-by-years matrix.
+
+    Reads the HMD mortality rates file for the specified gender, filters
+    to ages 40-100 and years 1968-2022, and pivots into matrix format.
+
+    Args:
+        data_dir: Path to the directory containing raw HMD data files.
+        gender: Sex to load, either 'Male' or 'Female'.
+
+    Returns:
+        DataFrame with ages as index and years as columns, containing
+        central death rates (Mx).
+    """
     suffix = "m" if gender == "Male" else "f"
     filepath = data_dir / f"FRA.Mx_{suffix}x1.txt"
 

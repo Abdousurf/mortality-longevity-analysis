@@ -1,16 +1,16 @@
-"""
-Mortality Table Construction & Analysis
-=========================================
-Builds mortality tables from raw experience data.
-Methods: raw qx, graduated tables (Whittaker-Henderson), Lee-Carter model.
+"""Mortality table construction and analysis.
+
+Builds mortality tables from raw experience data using raw qx computation,
+graduated tables via Whittaker-Henderson smoothing, and the Lee-Carter
+stochastic mortality model.
 
 Actuarial notation:
-  qx  = probability of dying between age x and x+1
-  px  = 1 - qx = probability of surviving
-  lx  = number of survivors at age x (radix l0 = 100,000)
-  dx  = lx - l(x+1) = number of deaths
-  ex  = complete life expectancy at age x
-  μx  = force of mortality at age x
+    qx: Probability of dying between age x and x+1.
+    px: 1 - qx, probability of surviving.
+    lx: Number of survivors at age x (radix l0 = 100,000).
+    dx: lx - l(x+1), number of deaths.
+    ex: Complete life expectancy at age x.
+    mu_x: Force of mortality at age x.
 """
 
 import numpy as np
@@ -25,9 +25,18 @@ warnings.filterwarnings("ignore")
 # ── Mortality Table Construction ─────────────────────────────────────────────
 
 def raw_qx(deaths: np.ndarray, exposures: np.ndarray) -> np.ndarray:
-    """
-    Compute raw observed mortality rates.
-    qx ≈ deaths / central exposed to risk (Balducci assumption).
+    """Compute raw observed mortality rates using the Balducci assumption.
+
+    Converts central death rates (mx) to initial rates of mortality (qx)
+    using the Balducci assumption: qx = mx / (1 + 0.5 * mx).
+
+    Args:
+        deaths: Array of observed death counts by age.
+        exposures: Array of central exposed-to-risk by age.
+
+    Returns:
+        Array of raw mortality rates (qx) by age. Values are NaN where
+        exposures are zero.
     """
     with np.errstate(divide="ignore", invalid="ignore"):
         mx = np.where(exposures > 0, deaths / exposures, np.nan)
@@ -36,11 +45,20 @@ def raw_qx(deaths: np.ndarray, exposures: np.ndarray) -> np.ndarray:
 
 
 def whittaker_henderson_graduation(qx_raw: np.ndarray, h: float = 0.1, z: int = 2) -> np.ndarray:
-    """
-    Whittaker-Henderson graduation of raw mortality rates.
-    Minimizes: h * Σ(qx_smooth - qx_raw)² + (1-h) * Σ(Δ^z qx_smooth)²
-    h: smoothness weight (0=fully smooth, 1=raw data)
-    z: order of differences (2 = penalize curvature)
+    """Graduate raw mortality rates using the Whittaker-Henderson method.
+
+    Minimizes a weighted sum of fit and smoothness:
+    h * sum((qx_smooth - qx_raw)^2) + (1-h) * sum((delta^z qx_smooth)^2)
+
+    Args:
+        qx_raw: Array of raw mortality rates to be graduated.
+        h: Smoothness weight between 0 and 1. A value of 0 produces fully
+            smooth output; a value of 1 returns the raw data unchanged.
+        z: Order of differences to penalize. A value of 2 penalizes
+            curvature.
+
+    Returns:
+        Array of graduated mortality rates, clipped to the range [1e-6, 1.0].
     """
     n = len(qx_raw)
     mask = ~np.isnan(qx_raw)
@@ -60,10 +78,18 @@ def whittaker_henderson_graduation(qx_raw: np.ndarray, h: float = 0.1, z: int = 
 
 
 def build_life_table(qx: np.ndarray, age_start: int = 0, radix: int = 100_000) -> pd.DataFrame:
-    """
-    Build a complete life table from a qx array.
+    """Build a complete period life table from a qx array.
 
-    Returns columns: age, qx, px, lx, dx, Lx, Tx, ex
+    Constructs all standard life table columns from the given mortality
+    rates, starting from a specified radix population.
+
+    Args:
+        qx: Array of age-specific mortality rates.
+        age_start: Starting age for the life table.
+        radix: Initial population at the starting age (l0).
+
+    Returns:
+        DataFrame with columns: age, qx, px, lx, dx, Lx, Tx, ex.
     """
     n = len(qx)
     ages = np.arange(age_start, age_start + n)
@@ -93,20 +119,33 @@ def build_life_table(qx: np.ndarray, age_start: int = 0, radix: int = 100_000) -
 # ── Lee-Carter Model ─────────────────────────────────────────────────────────
 
 class LeeCarter:
-    """
-    Lee-Carter stochastic mortality model.
+    """Lee-Carter stochastic mortality model.
 
-    Model: ln(μ_{x,t}) = α_x + β_x · κ_t
+    Decomposes log central death rates into age and time components:
+    ln(mu_{x,t}) = alpha_x + beta_x * kappa_t
 
     where:
-        α_x = average log-mortality at age x
-        β_x = age-specific sensitivity to time trend
-        κ_t = time index (mortality level driver)
+        alpha_x: Average log-mortality at age x.
+        beta_x: Age-specific sensitivity to the time trend.
+        kappa_t: Time index capturing the overall mortality level.
 
-    Projection: κ_t follows ARIMA(0,1,0) random walk with drift.
+    Projection of kappa_t follows an ARIMA(0,1,0) random walk with drift.
+
+    Attributes:
+        alpha: Array of fitted alpha_x parameters.
+        beta: Array of fitted beta_x parameters.
+        kappa: Array of fitted kappa_t parameters.
+        ages: Array of ages used in fitting.
+        years: Array of years used in fitting.
+
+    Example:
+        >>> lc = LeeCarter()
+        >>> lc.fit(mx_matrix)
+        >>> projections = lc.project_qx(horizon=25)
     """
 
     def __init__(self):
+        """Initialize a LeeCarter model with empty parameters."""
         self.alpha = None
         self.beta = None
         self.kappa = None
@@ -116,9 +155,18 @@ class LeeCarter:
         self._kappa_sigma = None
 
     def fit(self, mx_matrix: pd.DataFrame):
-        """
-        Fit Lee-Carter to a matrix of central death rates.
-        mx_matrix: DataFrame with shape (ages × years), index=ages, columns=years
+        """Fit the Lee-Carter model to a matrix of central death rates.
+
+        Uses singular value decomposition (SVD) on the centered log-mortality
+        surface to extract the age and time components.
+
+        Args:
+            mx_matrix: DataFrame of central death rates with shape
+                (ages x years), where the index contains ages and the
+                columns contain years.
+
+        Returns:
+            The fitted LeeCarter instance (self).
         """
         self.ages = mx_matrix.index.values
         self.years = mx_matrix.columns.values
@@ -151,9 +199,19 @@ class LeeCarter:
         return self
 
     def project_kappa(self, n_years: int, n_simulations: int = 1000, seed: int = 42) -> np.ndarray:
-        """
-        Project κ_t forward using random walk with drift.
-        Returns array of shape (n_simulations, n_years).
+        """Project kappa_t forward using a random walk with drift.
+
+        Generates stochastic simulations of the mortality time index
+        kappa_t using the fitted drift and volatility parameters.
+
+        Args:
+            n_years: Number of years to project forward.
+            n_simulations: Number of Monte Carlo simulation paths.
+            seed: Random number generator seed for reproducibility.
+
+        Returns:
+            Array of shape (n_simulations, n_years) containing the
+            projected kappa_t paths.
         """
         rng = np.random.default_rng(seed)
         kappa_last = self.kappa[-1]
@@ -167,12 +225,23 @@ class LeeCarter:
 
     def project_qx(self, horizon: int = 25, confidence: float = 0.95,
                    n_sim: int = 1000) -> dict:
-        """
-        Project age-specific mortality rates over a horizon.
+        """Project age-specific mortality rates over a given horizon.
+
+        Generates stochastic mortality projections with central estimates
+        and confidence intervals derived from Monte Carlo simulation.
+
+        Args:
+            horizon: Number of years to project forward.
+            confidence: Confidence level for the projection interval
+                (e.g., 0.95 for a 95% confidence band).
+            n_sim: Number of Monte Carlo simulations.
 
         Returns:
-            central: best estimate qx matrix (ages × horizon)
-            lower / upper: confidence bands
+            Dictionary with three keys:
+                central: DataFrame of best-estimate qx values
+                    (ages x projection years).
+                lower: DataFrame of lower confidence bound qx values.
+                upper: DataFrame of upper confidence bound qx values.
         """
         proj_years = np.arange(self.years[-1] + 1, self.years[-1] + horizon + 1)
         kappa_sims = self.project_kappa(horizon, n_simulations=n_sim)
@@ -201,7 +270,20 @@ class LeeCarter:
         }
 
     def life_expectancy(self, qx_matrix: pd.DataFrame, start_age: int = 65) -> pd.Series:
-        """Compute period life expectancy at start_age for each year column."""
+        """Compute period life expectancy at a given age for each year.
+
+        Builds a life table for each year column in the provided qx matrix
+        and extracts the life expectancy at the specified starting age.
+
+        Args:
+            qx_matrix: DataFrame of mortality rates with ages as index
+                and years as columns.
+            start_age: Age at which to compute life expectancy.
+
+        Returns:
+            Series of life expectancy values indexed by year, named
+            'e{start_age}'.
+        """
         results = {}
         for year in qx_matrix.columns:
             qx = qx_matrix.loc[start_age:, year].values
@@ -213,9 +295,19 @@ class LeeCarter:
 # ── Longevity Risk ────────────────────────────────────────────────────────────
 
 def annuity_present_value(qx: np.ndarray, interest_rate: float, start_age: int) -> float:
-    """
-    Compute actuarial present value of a whole life annuity of 1 per year.
-    ä_x = Σ v^t · t_p_x  (life annuity due)
+    """Compute the actuarial present value of a whole life annuity-due.
+
+    Calculates a-double-dot_x = sum(v^t * t_p_x) for a life annuity-due
+    paying 1 per year, where v is the discount factor and t_p_x is the
+    probability of surviving t years from age x.
+
+    Args:
+        qx: Array of age-specific mortality rates starting from start_age.
+        interest_rate: Annual effective interest rate for discounting.
+        start_age: Age at which the annuity begins.
+
+    Returns:
+        Present value of the annuity per unit of annual payment.
     """
     px = 1 - qx
     n = len(px)
@@ -227,11 +319,28 @@ def annuity_present_value(qx: np.ndarray, interest_rate: float, start_age: int) 
 
 def longevity_shock_impact(qx_base: np.ndarray, shock_factor: float = 0.8,
                             interest_rate: float = 0.03, start_age: int = 65) -> dict:
-    """
-    Solvency II longevity stress: apply a permanent mortality reduction.
-    Standard shock: qx_stress = qx_base * (1 - 20%)  [Article 142, Delegated Acts]
+    """Quantify the impact of a Solvency II longevity stress test.
 
-    Returns: base reserve, stressed reserve, reserve increase (%), SCR proxy.
+    Applies a permanent multiplicative reduction to mortality rates
+    (standard shock: 20% reduction per Article 142, Delegated Acts)
+    and measures the resulting increase in annuity reserves.
+
+    Args:
+        qx_base: Array of baseline age-specific mortality rates.
+        shock_factor: Multiplicative factor applied to qx. A value of 0.8
+            represents a 20% reduction in mortality.
+        interest_rate: Annual effective interest rate for discounting.
+        start_age: Age at which the annuity begins.
+
+    Returns:
+        Dictionary containing:
+            annuity_base: Present value of the annuity under base mortality.
+            annuity_stressed: Present value under stressed mortality.
+            scr_proxy_per_unit: Additional capital required per unit annuity.
+            reserve_increase_pct: Percentage increase in reserves.
+            shock_factor_applied: The shock factor used.
+            start_age: The starting age used.
+            interest_rate: The interest rate used.
     """
     qx_stressed = qx_base * shock_factor
 

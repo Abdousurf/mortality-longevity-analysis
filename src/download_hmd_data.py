@@ -1,5 +1,8 @@
-"""
-Download French mortality data from the Human Mortality Database (HMD).
+"""Download French mortality data from the Human Mortality Database (HMD).
+
+Retrieves death rates, population exposures, and death counts for France
+from the HMD using HTTP Basic authentication. Data is saved to the
+data/raw/ directory.
 
 Usage:
     python src/download_hmd_data.py
@@ -38,6 +41,14 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 
 
 def get_credentials() -> tuple[str, str]:
+    """Retrieve HMD login credentials from environment or interactive input.
+
+    Checks for HMD_USERNAME and HMD_PASSWORD environment variables first.
+    If not set, prompts the user for interactive input.
+
+    Returns:
+        Tuple of (username, password) strings.
+    """
     username = os.environ.get("HMD_USERNAME")
     password = os.environ.get("HMD_PASSWORD")
 
@@ -51,6 +62,19 @@ def get_credentials() -> tuple[str, str]:
 
 
 def download_file(filename: str, username: str, password: str) -> bool:
+    """Download a single file from the HMD server.
+
+    Constructs the URL from the base path and filename, authenticates
+    via HTTP Basic auth, and writes the response to the data directory.
+
+    Args:
+        filename: Name of the HMD data file to download.
+        username: HMD account username (email).
+        password: HMD account password.
+
+    Returns:
+        True if the download succeeded, False otherwise.
+    """
     url = f"{BASE_URL}/{filename}"
     credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
 
@@ -74,6 +98,12 @@ def download_file(filename: str, username: str, password: str) -> bool:
 
 
 def main():
+    """Run the HMD data download pipeline.
+
+    Creates the output directory, obtains credentials, and downloads
+    all configured HMD data files. Exits with code 1 if no files
+    were successfully downloaded.
+    """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
