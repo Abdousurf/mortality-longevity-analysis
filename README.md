@@ -65,6 +65,16 @@ Raw Data (INSEE/HMD)
   ─ 25-year mortality fan charts
 ```
 
+```mermaid
+flowchart TD
+    A["Open Data\nINSEE · HMD · WHO"] -->|download_hmd_data.py| B[("Raw Data\nMortality tables 1816–2022")]
+    B -->|Pandera validation| C["QC & Cleaning\nAge/period completeness"]
+    C --> D["Mortality Table Construction\nqx · Whittaker-Henderson"]
+    D --> E["Lee-Carter Model\nSVD decomposition · ARIMA κt"]
+    E --> F["Longevity Stress Tests\nVaR 99.5% · Solvency II"]
+    F --> G["Visualizations & Report\nLexis diagram · Fan charts · HTML"]
+```
+
 ## Open Data Sources
 
 | Source | Dataset | Licence | Script |
