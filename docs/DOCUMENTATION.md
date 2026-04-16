@@ -29,7 +29,7 @@ Le **risque de longévité** est l'un des risques systémiques majeurs pour les 
 Exemple concret :
   Un portefeuille de rentes viagères de €100M est réservé sur des tables
   projetant e₆₅ (espérance de vie à 65 ans) = 20 ans.
-  
+
   Si la réalité est e₆₅ = 22 ans (+2 ans)
   → les rentes durent 10% plus longtemps que prévu
   → réserve sous-estimée de ~€8–12M
