@@ -39,13 +39,15 @@ Covers:
 #
 # Projection: κ_t follows a **random walk with drift** → uncertainty fans out over time
 
+import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+
 # %%
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path("..").resolve()))
 

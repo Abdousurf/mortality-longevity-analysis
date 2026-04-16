@@ -26,10 +26,11 @@ Actuarial notation (the shorthand used throughout):
 # 6. Calculates the financial cost of annuities and longevity risk
 # ───────────────────────────────────────────────────────
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from scipy.linalg import svd
-import warnings
 
 warnings.filterwarnings("ignore")
 

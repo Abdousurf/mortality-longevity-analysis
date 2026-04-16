@@ -26,13 +26,13 @@ Downloads:
 # 3. Saves them to the data/raw/ folder so other scripts can use them
 # ───────────────────────────────────────────────────────
 
+import base64
+import getpass
 import os
 import sys
-import getpass
 from pathlib import Path
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError
-import base64
+from urllib.request import Request, urlopen
 
 # The web address where HMD stores the French mortality data files
 BASE_URL = "https://www.mortality.org/File/GetDocument/hmd.v6/FRA/STATS"

@@ -18,7 +18,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pandera as pa
-from pandera import Column, DataFrameSchema, Check
+from pandera import Check, Column, DataFrameSchema
 
 log = logging.getLogger(__name__)
 
