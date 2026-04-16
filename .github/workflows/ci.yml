@@ -82,13 +82,14 @@ jobs:
           python -c "
           from pathlib import Path
           import subprocess
-          processed = Path('data/processed')
-          if not any(processed.glob('*.parquet')):
+          raw = Path('data/raw')
+          if not any(raw.glob('*.txt')):
               print('Fallback: génération données démo')
               subprocess.run(['python', 'src/download_hmd_data.py', '--demo-only'], check=True)
           else:
-              print('Données disponibles:', list(processed.glob('*.parquet')))
+              print('Données disponibles:', list(raw.glob('*.txt')))
           "
+        continue-on-error: true
 
       - name: Validate data quality (Pandera + actuarial checks)
         run: |

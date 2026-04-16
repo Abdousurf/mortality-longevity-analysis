@@ -157,5 +157,58 @@ def main():
         sys.exit(1)
 
 
+def generate_demo_data():
+    """Generate synthetic demo mortality data for CI/testing.
+
+    Creates realistic-looking mortality rate files so the pipeline
+    can run end-to-end without HMD credentials.
+    """
+    import numpy as np
+
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    processed_dir = DATA_DIR.parent / "processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    print("Generating demo mortality data...")
+
+    ages = range(0, 111)
+    years = range(2000, 2023)
+
+    for filename in ["Mx_1x1.txt", "fMx_1x1.txt", "mMx_1x1.txt"]:
+        lines = [
+            "France, Death rates (period 1x1) — DEMO DATA",
+            "",
+            "  Year          Age             mx",
+        ]
+        for year in years:
+            for age in ages:
+                base_rate = 0.0001 * np.exp(0.08 * age)
+                rate = base_rate * (1 + 0.01 * np.random.randn())
+                rate = max(rate, 1e-6)
+                lines.append(f"  {year}       {age:>5}        {rate:.6f}")
+        (DATA_DIR / filename).write_text("\n".join(lines))
+        print(f"  Created {filename}")
+
+    for filename in ["Exposures_1x1.txt", "Deaths_1x1.txt", "Population.txt"]:
+        lines = [
+            "France, Population data — DEMO DATA",
+            "",
+            "  Year          Age          Total",
+        ]
+        for year in years:
+            for age in ages:
+                value = max(
+                    100, int(800000 * np.exp(-0.01 * age) + np.random.randn() * 1000)
+                )
+                lines.append(f"  {year}       {age:>5}        {value}")
+        (DATA_DIR / filename).write_text("\n".join(lines))
+        print(f"  Created {filename}")
+
+    print(f"Demo data generated in {DATA_DIR}")
+
+
 if __name__ == "__main__":
-    main()
+    if "--demo-only" in sys.argv:
+        generate_demo_data()
+    else:
+        main()
