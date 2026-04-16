@@ -13,6 +13,7 @@ Utilisé en CI pour garantir la qualité des données avant modélisation Lee-Ca
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,9 @@ MORTALITY_SCHEMA = DataFrameSchema(
             checks=[
                 Check.greater_than(0.0),
                 Check.less_than_or_equal_to(1.0),
-                Check(lambda s: s.notna().all(), error="qx ne doit pas contenir de NaN"),
+                Check(
+                    lambda s: s.notna().all(), error="qx ne doit pas contenir de NaN"
+                ),
             ],
             description="Probabilité de décès entre x et x+1",
         ),
@@ -81,9 +84,11 @@ MORTALITY_SCHEMA = DataFrameSchema(
 HMD_SCHEMA = DataFrameSchema(
     columns={
         "Year": Column(int, checks=Check.between(1800, 2030)),
-        "Age":  Column(int, checks=Check.between(0, 110)),
-        "mx":   Column(float, checks=[Check.greater_than(0), Check.less_than(10)]),
-        "qx":   Column(float, checks=[Check.greater_than(0), Check.less_than_or_equal_to(1)]),
+        "Age": Column(int, checks=Check.between(0, 110)),
+        "mx": Column(float, checks=[Check.greater_than(0), Check.less_than(10)]),
+        "qx": Column(
+            float, checks=[Check.greater_than(0), Check.less_than_or_equal_to(1)]
+        ),
         "sexe": Column(str, checks=Check.isin(["M", "F"])),
     },
     name="HMDTable",
@@ -93,7 +98,9 @@ HMD_SCHEMA = DataFrameSchema(
 # ---------------------------------------------------------------------------
 # Validation functions
 # ---------------------------------------------------------------------------
-def validate_mortality_table(df: pd.DataFrame, schema: DataFrameSchema = MORTALITY_SCHEMA) -> bool:
+def validate_mortality_table(
+    df: pd.DataFrame, schema: DataFrameSchema = MORTALITY_SCHEMA
+) -> bool:
     """
     Valide un DataFrame de mortalité contre le schéma Pandera.
     Retourne True si valide, lève une exception sinon.
@@ -105,11 +112,18 @@ def validate_mortality_table(df: pd.DataFrame, schema: DataFrameSchema = MORTALI
     except pa.errors.SchemaErrors as e:
         log.error("❌ Validation échouée :")
         for _, row in e.failure_cases.iterrows():
-            log.error("  Colonne '%s' : %s → %s", row.get("column"), row.get("check"), row.get("failure_case"))
+            log.error(
+                "  Colonne '%s' : %s → %s",
+                row.get("column"),
+                row.get("check"),
+                row.get("failure_case"),
+            )
         raise
 
 
-def check_actuarial_monotonicity(df: pd.DataFrame, min_age: int = 30) -> dict[str, bool]:
+def check_actuarial_monotonicity(
+    df: pd.DataFrame, min_age: int = 30
+) -> dict[str, bool]:
     """
     Vérifie la monotonie croissante de qx avec l'âge (règle actuarielle).
     Les qx doivent être croissants à partir de 30 ans.
@@ -130,7 +144,12 @@ def check_actuarial_monotonicity(df: pd.DataFrame, min_age: int = 30) -> dict[st
 
         results[sexe] = is_monotone
         if not is_monotone:
-            log.warning("⚠️  Monotonie qx violée (%s) : %d violations (âge >= %d)", sexe, violations, min_age)
+            log.warning(
+                "⚠️  Monotonie qx violée (%s) : %d violations (âge >= %d)",
+                sexe,
+                violations,
+                min_age,
+            )
         else:
             log.info("✅ Monotonie qx OK (%s, âge >= %d)", sexe, min_age)
 
@@ -142,7 +161,12 @@ def check_gender_differential(df: pd.DataFrame, min_age: int = 20) -> bool:
     Vérifie que qx(F) < qx(M) pour les âges > 20 ans (réalité démographique).
     Une inversion massive indiquerait une erreur de données.
     """
-    pivot = df[df["age"] >= min_age].groupby(["age", "sexe"])["qx"].mean().unstack(fill_value=np.nan)
+    pivot = (
+        df[df["age"] >= min_age]
+        .groupby(["age", "sexe"])["qx"]
+        .mean()
+        .unstack(fill_value=np.nan)
+    )
 
     if "M" not in pivot.columns or "F" not in pivot.columns:
         log.warning("Impossible de comparer H/F — colonnes manquantes")
@@ -153,10 +177,15 @@ def check_gender_differential(df: pd.DataFrame, min_age: int = 20) -> bool:
     pct = violations / total
 
     if pct > 0.20:  # Plus de 20% d'inversions = problème
-        log.error("❌ Différentiel genre suspect : qx(F) > qx(M) pour %.0f%% des âges", pct * 100)
+        log.error(
+            "❌ Différentiel genre suspect : qx(F) > qx(M) pour %.0f%% des âges",
+            pct * 100,
+        )
         return False
 
-    log.info("✅ Différentiel genre OK : qx(F) < qx(M) pour %.0f%% des âges", (1 - pct) * 100)
+    log.info(
+        "✅ Différentiel genre OK : qx(F) < qx(M) pour %.0f%% des âges", (1 - pct) * 100
+    )
     return True
 
 
@@ -165,8 +194,6 @@ def validate_all(data_path: Path) -> dict[str, Any]:
     Validation complète d'un fichier de données de mortalité.
     Retourne un rapport de validation pour la CI.
     """
-    from typing import Any
-
     if not data_path.exists():
         log.error("Fichier introuvable : %s", data_path)
         return {"valid": False, "error": "file_not_found"}
@@ -185,7 +212,9 @@ def validate_all(data_path: Path) -> dict[str, Any]:
 
     # 2. Monotonie
     monotone = check_actuarial_monotonicity(df)
-    report["checks"]["monotonicity"] = {k: "pass" if v else "fail" for k, v in monotone.items()}
+    report["checks"]["monotonicity"] = {
+        k: "pass" if v else "fail" for k, v in monotone.items()
+    }
 
     # 3. Différentiel genre
     gender_ok = check_gender_differential(df)
@@ -194,8 +223,12 @@ def validate_all(data_path: Path) -> dict[str, Any]:
     # 4. Statistiques basiques
     report["stats"] = {
         "years": sorted(df["annee"].unique().tolist()) if "annee" in df.columns else [],
-        "age_range": [int(df["age"].min()), int(df["age"].max())] if "age" in df.columns else [],
-        "qx_range": [float(df["qx"].min()), float(df["qx"].max())] if "qx" in df.columns else [],
+        "age_range": (
+            [int(df["age"].min()), int(df["age"].max())] if "age" in df.columns else []
+        ),
+        "qx_range": (
+            [float(df["qx"].min()), float(df["qx"].max())] if "qx" in df.columns else []
+        ),
     }
 
     report["valid"] = all(
@@ -213,10 +246,16 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+    )
 
-    parser = argparse.ArgumentParser(description="Valide les données de mortalité (DataOps)")
-    parser.add_argument("--data-path", default="data/processed/insee_mortality_france.parquet")
+    parser = argparse.ArgumentParser(
+        description="Valide les données de mortalité (DataOps)"
+    )
+    parser.add_argument(
+        "--data-path", default="data/processed/insee_mortality_france.parquet"
+    )
     parser.add_argument("--output", help="Chemin JSON pour le rapport de validation")
     args = parser.parse_args()
 
@@ -231,4 +270,5 @@ if __name__ == "__main__":
 
     if not report.get("valid", False):
         import sys
+
         sys.exit(1)

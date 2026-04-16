@@ -29,13 +29,13 @@ Actuarial notation (the shorthand used throughout):
 import numpy as np
 import pandas as pd
 from scipy.linalg import svd
-from scipy.optimize import minimize
-from scipy.stats import norm
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
 # ── Mortality Table Construction ─────────────────────────────────────────────
+
 
 def raw_qx(deaths: np.ndarray, exposures: np.ndarray) -> np.ndarray:
     """Calculate raw death rates from death counts and population data.
@@ -62,7 +62,9 @@ def raw_qx(deaths: np.ndarray, exposures: np.ndarray) -> np.ndarray:
     return qx
 
 
-def whittaker_henderson_graduation(qx_raw: np.ndarray, h: float = 0.1, z: int = 2) -> np.ndarray:
+def whittaker_henderson_graduation(
+    qx_raw: np.ndarray, h: float = 0.1, z: int = 2
+) -> np.ndarray:
     """Smooth out noisy death rates so they form a clean, realistic curve.
 
     Raw death rates jump around a lot because of small sample sizes.
@@ -104,7 +106,9 @@ def whittaker_henderson_graduation(qx_raw: np.ndarray, h: float = 0.1, z: int = 
     return qx_smooth
 
 
-def build_life_table(qx: np.ndarray, age_start: int = 0, radix: int = 100_000) -> pd.DataFrame:
+def build_life_table(
+    qx: np.ndarray, age_start: int = 0, radix: int = 100_000
+) -> pd.DataFrame:
     """Create a complete life table from death rates — the classic actuarial tool.
 
     Imagine starting with 100,000 newborns and watching what happens as
@@ -140,24 +144,27 @@ def build_life_table(qx: np.ndarray, age_start: int = 0, radix: int = 100_000) -
     Lx = 0.5 * (lx[:-1] + lx[1:])  # person-years lived
 
     # Total future person-years: sum from this age onward
-    Tx = np.cumsum(Lx[::-1])[::-1]   # total person-years above age x
+    Tx = np.cumsum(Lx[::-1])[::-1]  # total person-years above age x
 
     # Life expectancy: total future years divided by current survivors
     ex = np.where(lx[:-1] > 0, Tx / lx[:-1], np.nan)
 
-    return pd.DataFrame({
-        "age": ages,
-        "qx": qx,
-        "px": 1 - qx,
-        "lx": lx[:-1].astype(int),
-        "dx": dx.astype(int),
-        "Lx": Lx,
-        "Tx": Tx,
-        "ex": ex,
-    })
+    return pd.DataFrame(
+        {
+            "age": ages,
+            "qx": qx,
+            "px": 1 - qx,
+            "lx": lx[:-1].astype(int),
+            "dx": dx.astype(int),
+            "Lx": Lx,
+            "Tx": Tx,
+            "ex": ex,
+        }
+    )
 
 
 # ── Lee-Carter Model ─────────────────────────────────────────────────────────
+
 
 class LeeCarter:
     """The Lee-Carter model — the standard way to predict future death rates.
@@ -251,7 +258,9 @@ class LeeCarter:
 
         return self
 
-    def project_kappa(self, n_years: int, n_simulations: int = 1000, seed: int = 42) -> np.ndarray:
+    def project_kappa(
+        self, n_years: int, n_simulations: int = 1000, seed: int = 42
+    ) -> np.ndarray:
         """Simulate many possible future paths for the mortality time index.
 
         Takes the trend and randomness we learned from history, and runs
@@ -285,8 +294,9 @@ class LeeCarter:
 
         return simulations
 
-    def project_qx(self, horizon: int = 25, confidence: float = 0.95,
-                   n_sim: int = 1000) -> dict:
+    def project_qx(
+        self, horizon: int = 25, confidence: float = 0.95, n_sim: int = 1000
+    ) -> dict:
         """Predict future death rates at every age, with uncertainty ranges.
 
         Runs thousands of simulations to produce a best guess for future
@@ -333,13 +343,21 @@ class LeeCarter:
 
         return {
             "central": pd.DataFrame(central_qx, index=self.ages, columns=proj_years),
-            "lower": pd.DataFrame(np.exp(lower_log_mu) / (1 + 0.5 * np.exp(lower_log_mu)),
-                                   index=self.ages, columns=proj_years),
-            "upper": pd.DataFrame(np.exp(upper_log_mu) / (1 + 0.5 * np.exp(upper_log_mu)),
-                                   index=self.ages, columns=proj_years),
+            "lower": pd.DataFrame(
+                np.exp(lower_log_mu) / (1 + 0.5 * np.exp(lower_log_mu)),
+                index=self.ages,
+                columns=proj_years,
+            ),
+            "upper": pd.DataFrame(
+                np.exp(upper_log_mu) / (1 + 0.5 * np.exp(upper_log_mu)),
+                index=self.ages,
+                columns=proj_years,
+            ),
         }
 
-    def life_expectancy(self, qx_matrix: pd.DataFrame, start_age: int = 65) -> pd.Series:
+    def life_expectancy(
+        self, qx_matrix: pd.DataFrame, start_age: int = 65
+    ) -> pd.Series:
         """Figure out how many more years a person at a given age can expect to live.
 
         For each future year, builds a life table and reads off the life
@@ -367,7 +385,10 @@ class LeeCarter:
 
 # ── Longevity Risk ────────────────────────────────────────────────────────────
 
-def annuity_present_value(qx: np.ndarray, interest_rate: float, start_age: int) -> float:
+
+def annuity_present_value(
+    qx: np.ndarray, interest_rate: float, start_age: int
+) -> float:
     """Calculate how much money you need today to fund a lifetime annual payment.
 
     If you promise to pay someone $1 every year for the rest of their life
@@ -399,8 +420,12 @@ def annuity_present_value(qx: np.ndarray, interest_rate: float, start_age: int) 
     return float(np.sum(vt * tpx))
 
 
-def longevity_shock_impact(qx_base: np.ndarray, shock_factor: float = 0.8,
-                            interest_rate: float = 0.03, start_age: int = 65) -> dict:
+def longevity_shock_impact(
+    qx_base: np.ndarray,
+    shock_factor: float = 0.8,
+    interest_rate: float = 0.03,
+    start_age: int = 65,
+) -> dict:
     """Measure the financial impact if people suddenly start living longer.
 
     Insurance regulators (under Solvency II rules) require companies to

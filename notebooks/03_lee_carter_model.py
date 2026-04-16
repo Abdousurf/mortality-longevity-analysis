@@ -43,14 +43,14 @@ Covers:
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 import seaborn as sns
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path("..").resolve()))
 
 # Import our custom mortality tools
-from src.mortality_tables import LeeCarter, build_life_table, longevity_shock_impact
+from src.mortality_tables import LeeCarter, longevity_shock_impact
 
 # Set up nice-looking charts
 sns.set_theme(style="whitegrid", palette="muted")
@@ -61,6 +61,7 @@ plt.rcParams.update({"figure.dpi": 120, "font.size": 11})
 #
 # Source: Human Mortality Database (France)
 # Register free at mortality.org
+
 
 # %%
 def load_hmd_france(data_dir: Path, gender: str = "Male") -> pd.DataFrame:
@@ -106,8 +107,10 @@ DATA_DIR = Path("../data/raw")
 try:
     mx_male = load_hmd_france(DATA_DIR, "Male")
     mx_female = load_hmd_france(DATA_DIR, "Female")
-    print(f"Data loaded: ages {mx_male.index.min()}–{mx_male.index.max()}, "
-          f"years {mx_male.columns.min()}–{mx_male.columns.max()}")
+    print(
+        f"Data loaded: ages {mx_male.index.min()}–{mx_male.index.max()}, "
+        f"years {mx_male.columns.min()}–{mx_male.columns.max()}"
+    )
 except FileNotFoundError:
     # No real data available — generate synthetic data that looks realistic
     print("HMD data not found — generating synthetic mortality surface...")
@@ -119,8 +122,7 @@ except FileNotFoundError:
     A, B = 0.0001, 0.1
     improvement_rate = 0.015  # 1.5% annual improvement
     mx_vals = np.outer(
-        A * np.exp(B * (ages - 40)),
-        np.exp(-improvement_rate * (years - 1968))
+        A * np.exp(B * (ages - 40)), np.exp(-improvement_rate * (years - 1968))
     )
     mx_male = pd.DataFrame(mx_vals, index=ages, columns=years)
     # Women generally have lower death rates than men
@@ -191,13 +193,15 @@ age_focus = 70
 
 # Create side-by-side fan charts for men and women
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-fig.suptitle(f"Projected Mortality Rate q_{age_focus} — France (2023–2047)", fontsize=13)
+fig.suptitle(
+    f"Projected Mortality Rate q_{age_focus} — France (2023–2047)", fontsize=13
+)
 
 for ax, proj, gender, color in zip(
     axes,
     [projection_male, projection_female],
     ["Males", "Females"],
-    ["steelblue", "coral"]
+    ["steelblue", "coral"],
 ):
     # Get the central prediction and the upper/lower uncertainty bounds
     central = proj["central"].loc[age_focus]
@@ -205,13 +209,24 @@ for ax, proj, gender, color in zip(
     upper = proj["upper"].loc[age_focus]
 
     # Shaded area shows the range of likely outcomes (95% confidence)
-    ax.fill_between(central.index, lower, upper, alpha=0.25, color=color, label="95% CI")
+    ax.fill_between(
+        central.index, lower, upper, alpha=0.25, color=color, label="95% CI"
+    )
     # Solid line shows the best-guess prediction
-    ax.plot(central.index, central, color=color, linewidth=2.5, label="Central estimate")
+    ax.plot(
+        central.index, central, color=color, linewidth=2.5, label="Central estimate"
+    )
 
     # Add the last 10 years of actual data for comparison
     hist_qx = mx_male.loc[age_focus, -10:] / (1 + 0.5 * mx_male.loc[age_focus, -10:])
-    ax.plot(hist_qx.index, hist_qx, color="gray", linestyle="--", alpha=0.7, label="Historical")
+    ax.plot(
+        hist_qx.index,
+        hist_qx,
+        color="gray",
+        linestyle="--",
+        alpha=0.7,
+        label="Historical",
+    )
 
     ax.set_title(f"{gender}")
     ax.set_xlabel("Year")
@@ -220,7 +235,9 @@ for ax, proj, gender, color in zip(
     ax.legend()
 
 plt.tight_layout()
-plt.savefig(f"../visualizations/mortality_fan_chart_age{age_focus}.png", bbox_inches="tight")
+plt.savefig(
+    f"../visualizations/mortality_fan_chart_age{age_focus}.png", bbox_inches="tight"
+)
 plt.show()
 
 # %% [markdown]
@@ -242,10 +259,14 @@ ax.legend()
 ax.grid(True, alpha=0.3)
 
 # Add a label showing the final projected value for males
-ax.annotate(f"e₆₅(M) 2047 ≈ {e65_male.iloc[-1]:.1f} yrs",
-            xy=(e65_male.index[-1], e65_male.iloc[-1]),
-            xytext=(-60, 10), textcoords="offset points",
-            fontsize=9, color="steelblue")
+ax.annotate(
+    f"e₆₅(M) 2047 ≈ {e65_male.iloc[-1]:.1f} yrs",
+    xy=(e65_male.index[-1], e65_male.iloc[-1]),
+    xytext=(-60, 10),
+    textcoords="offset points",
+    fontsize=9,
+    color="steelblue",
+)
 
 plt.tight_layout()
 plt.savefig("../visualizations/life_expectancy_projection.png", bbox_inches="tight")
@@ -261,9 +282,9 @@ qx_2023_male = projection_male["central"].iloc[:, 0].values
 # Run the regulatory stress test: what if death rates suddenly drop 20%?
 result = longevity_shock_impact(
     qx_base=qx_2023_male,
-    shock_factor=0.80,       # SII: 20% permanent reduction
+    shock_factor=0.80,  # SII: 20% permanent reduction
     interest_rate=0.03,
-    start_age=65
+    start_age=65,
 )
 
 # Print the financial impact
@@ -272,8 +293,10 @@ print(f"  Annuity ä₆₅ (base):      {result['annuity_base']:.4f}")
 print(f"  Annuity ä₆₅ (stressed):  {result['annuity_stressed']:.4f}")
 print(f"  Reserve increase:         +{result['reserve_increase_pct']:.1f}%")
 print(f"  SCR proxy per € 1 annuity: {result['scr_proxy_per_unit']:.4f}")
-print(f"\n  → A €100M annuity book requires ~€{result['reserve_increase_pct']:.0f}M "
-      f"additional capital under longevity shock")
+print(
+    f"\n  → A €100M annuity book requires ~€{result['reserve_increase_pct']:.0f}M "
+    f"additional capital under longevity shock"
+)
 
 # %% [markdown]
 # ## 7. Summary Table — Mortality Improvement by Age Cohort
@@ -288,20 +311,30 @@ for age in ages_report:
     # Convert from central rate to yearly probability for each time point
     qx_hist = mx_male.loc[age, 1990] / (1 + 0.5 * mx_male.loc[age, 1990])
     qx_curr = mx_male.loc[age, 2022] / (1 + 0.5 * mx_male.loc[age, 2022])
-    qx_proj = projection_male["central"].loc[age].iloc[-1] if age in projection_male["central"].index else np.nan
+    qx_proj = (
+        projection_male["central"].loc[age].iloc[-1]
+        if age in projection_male["central"].index
+        else np.nan
+    )
 
     # Calculate how much death rates have improved (negative = lives saved)
     improvement_hist = (qx_curr - qx_hist) / qx_hist
-    improvement_proj = (qx_proj - qx_curr) / qx_curr if not np.isnan(qx_proj) else np.nan
+    improvement_proj = (
+        (qx_proj - qx_curr) / qx_curr if not np.isnan(qx_proj) else np.nan
+    )
 
-    summary_rows.append({
-        "Age": age,
-        "qx 1990": f"{qx_hist:.4f}",
-        "qx 2022": f"{qx_curr:.4f}",
-        "qx 2047 (proj)": f"{qx_proj:.4f}" if not np.isnan(qx_proj) else "N/A",
-        "Improvement 1990–2022": f"{improvement_hist:.1%}",
-        "Improvement 2022–2047": f"{improvement_proj:.1%}" if not np.isnan(improvement_proj) else "N/A",
-    })
+    summary_rows.append(
+        {
+            "Age": age,
+            "qx 1990": f"{qx_hist:.4f}",
+            "qx 2022": f"{qx_curr:.4f}",
+            "qx 2047 (proj)": f"{qx_proj:.4f}" if not np.isnan(qx_proj) else "N/A",
+            "Improvement 1990–2022": f"{improvement_hist:.1%}",
+            "Improvement 2022–2047": (
+                f"{improvement_proj:.1%}" if not np.isnan(improvement_proj) else "N/A"
+            ),
+        }
+    )
 
 # Display the summary table
 summary = pd.DataFrame(summary_rows).set_index("Age")
