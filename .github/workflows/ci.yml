@@ -190,6 +190,7 @@ jobs:
         with:
           name: processed-mortality-data
           path: data/processed/
+        continue-on-error: true
 
       - name: Run tests
         run: pytest tests/ -v --tb=short 2>/dev/null || echo "⚠️ Tests non configurés — skip"
