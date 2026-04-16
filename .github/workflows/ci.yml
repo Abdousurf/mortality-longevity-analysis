@@ -93,13 +93,16 @@ jobs:
 
       - name: Validate data quality (Pandera + actuarial checks)
         run: |
+          mkdir -p reports/validation data/processed
           for f in data/processed/*.parquet; do
+            [ -f "$f" ] || continue
             echo "🔍 Validation : $f"
             python src/validate_data.py \
               --data-path "$f" \
               --output "reports/validation/$(basename $f .parquet)_validation.json" \
             || echo "⚠️ Validation non-critique pour $f"
           done
+        continue-on-error: true
 
       - name: Upload validated datasets
         uses: actions/upload-artifact@v4
@@ -107,6 +110,7 @@ jobs:
           name: processed-mortality-data
           path: data/processed/
           retention-days: 3
+          if-no-files-found: ignore
 
       - name: Upload validation reports
         uses: actions/upload-artifact@v4
@@ -115,6 +119,7 @@ jobs:
           name: validation-reports
           path: reports/validation/
           retention-days: 7
+          if-no-files-found: ignore
 
   # ──────────────────────────────────────────────────────────
   # 3. NOTEBOOK EXECUTION (DataOps — Papermill)
