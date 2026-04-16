@@ -26,9 +26,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - name: Install dev tools
-        run: pip install ruff black isort pre-commit nbstripout
-      - name: Pre-commit checks
-        run: pre-commit run --all-files
+        run: pip install ruff black isort
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Format check (black)
+        run: black --check .
+      - name: Import order (isort)
+        run: isort --check --profile black .
       - name: Check notebooks are stripped
         run: |
           for nb in notebooks/*.ipynb; do
