@@ -9,14 +9,13 @@ import pandas as pd
 import pytest
 
 from src.mortality_tables import (
-    raw_qx,
-    whittaker_henderson_graduation,
-    build_life_table,
     LeeCarter,
     annuity_present_value,
+    build_life_table,
     longevity_shock_impact,
+    raw_qx,
+    whittaker_henderson_graduation,
 )
-
 
 # ── raw_qx ─────────────────────────────────────────────────────────────────
 
@@ -257,8 +256,12 @@ class TestLongevityShockImpact:
     def test_result_keys(self, base_qx):
         result = longevity_shock_impact(base_qx)
         expected = {
-            "annuity_base", "annuity_stressed", "scr_proxy_per_unit",
-            "reserve_increase_pct", "shock_factor_applied", "start_age",
+            "annuity_base",
+            "annuity_stressed",
+            "scr_proxy_per_unit",
+            "reserve_increase_pct",
+            "shock_factor_applied",
+            "start_age",
             "interest_rate",
         }
         assert set(result.keys()) == expected

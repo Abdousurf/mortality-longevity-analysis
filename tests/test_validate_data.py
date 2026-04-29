@@ -8,9 +8,9 @@ import pandas as pd
 import pytest
 
 from src.validate_data import (
-    validate_mortality_table,
     check_actuarial_monotonicity,
     check_gender_differential,
+    validate_mortality_table,
 )
 
 
@@ -93,7 +93,9 @@ class TestActuarialMonotonicity:
                 qx = 0.005 * np.exp(0.07 * age)
                 if age == 50:
                     qx = 0.0001  # Anomalous drop
-                rows.append({"annee": annee, "age": age, "qx": min(qx, 1.0), "sexe": "M"})
+                rows.append(
+                    {"annee": annee, "age": age, "qx": min(qx, 1.0), "sexe": "M"}
+                )
         df = pd.DataFrame(rows)
         result = check_actuarial_monotonicity(df)
         assert result["M"] == False  # noqa: E712
@@ -113,8 +115,22 @@ class TestGenderDifferential:
         rows = []
         for annee in [2020]:
             for age in range(0, 111):
-                rows.append({"annee": annee, "age": age, "qx": 0.01 * np.exp(0.06 * age), "sexe": "F"})
-                rows.append({"annee": annee, "age": age, "qx": 0.005 * np.exp(0.06 * age), "sexe": "M"})
+                rows.append(
+                    {
+                        "annee": annee,
+                        "age": age,
+                        "qx": 0.01 * np.exp(0.06 * age),
+                        "sexe": "F",
+                    }
+                )
+                rows.append(
+                    {
+                        "annee": annee,
+                        "age": age,
+                        "qx": 0.005 * np.exp(0.06 * age),
+                        "sexe": "M",
+                    }
+                )
         df = pd.DataFrame(rows)
         df["qx"] = df["qx"].clip(upper=1.0)
         assert check_gender_differential(df, min_age=20) is False
@@ -123,7 +139,14 @@ class TestGenderDifferential:
         """If only one sex present, the check should pass (can't compare)."""
         rows = []
         for age in range(0, 111):
-            rows.append({"annee": 2020, "age": age, "qx": 0.005 * np.exp(0.07 * age), "sexe": "M"})
+            rows.append(
+                {
+                    "annee": 2020,
+                    "age": age,
+                    "qx": 0.005 * np.exp(0.07 * age),
+                    "sexe": "M",
+                }
+            )
         df = pd.DataFrame(rows)
         df["qx"] = df["qx"].clip(upper=1.0)
         assert check_gender_differential(df) is True
